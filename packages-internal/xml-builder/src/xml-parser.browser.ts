@@ -1,7 +1,17 @@
+import { parseXML as parseXMLWithoutDOMParser } from "./aws-xml-parser";
+
 let parser: DOMParser | undefined;
 
+const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
+
 /**
- * Cases where this differs from fast-xml-parser:
+ * Uses DOMParser when the runtime provides it. Runtimes that resolve the
+ * browser entry point without a DOM (Cloudflare workerd, StarlingMonkey /
+ * ComponentizeJS WebAssembly components, some edge runtimes) fall back to the
+ * dependency-free parser used in Node.js.
+ *
+ * Cases where the DOMParser path differs from fast-xml-parser:
  *
  * 1. Mixing text with nested tags (does not occur in AWS REST XML).
  * <mixed-text> hello, <bold>world</bold>, how are you?</mixed-text>
@@ -9,6 +19,10 @@ let parser: DOMParser | undefined;
  * @internal
  */
 export function parseXML(xmlString: string): any {
+  if (typeof DOMParser === "undefined") {
+    return parseXMLWithoutDOMParser(xmlString);
+  }
+
   if (!parser) {
     parser = new DOMParser();
   }
@@ -21,13 +35,13 @@ export function parseXML(xmlString: string): any {
 
   // Recursive function to convert XML nodes to JS object
   const xmlToObj = (node: Node): any => {
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === TEXT_NODE) {
       if (node.textContent?.trim()) {
         return node.textContent;
       }
     }
 
-    if (node.nodeType === Node.ELEMENT_NODE) {
+    if (node.nodeType === ELEMENT_NODE) {
       const element = node as Element;
       if (element.attributes.length === 0 && element.childNodes.length === 0) {
         return "";
