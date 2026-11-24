@@ -15,3 +15,21 @@
 > package manager, rather than taking a direct dependency.
 
 ---
+
+## XML parsing in runtimes without `DOMParser`
+
+The `browser` and `react-native` entry points (`dist-es/xml-parser.browser.js`)
+parse XML with the global `DOMParser` when it is available. Some runtimes that
+resolve the `browser` condition don't define `DOMParser`, for example
+Cloudflare Workers/workerd and WebAssembly components built with
+ComponentizeJS/StarlingMonkey (see
+[#7375](https://github.com/aws/aws-sdk-js-v3/issues/7375)). In those runtimes,
+`parseXML` falls back to the package's own dependency-free JavaScript parser
+(`aws-xml-parser`, the same parser the Node.js entry point uses). The check is
+`typeof DOMParser === "undefined"` and runs on each call, so the parser doesn't
+depend on module-load order. Neither path depends on the global `Node` object.
+
+Both parsers produce the same object shape for SDK responses. Entity and
+numeric character references, including astral code points such as `&#x1F600;`,
+decode the same way in both. A character reference above `U+10FFFF` is rejected
+with an `@aws-sdk XML parse error`.
