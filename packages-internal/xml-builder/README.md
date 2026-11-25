@@ -15,3 +15,17 @@
 > package manager, rather than taking a direct dependency.
 
 ---
+
+## XML parsing in runtimes without `DOMParser`
+
+The `browser` and `react-native` builds (`dist-es/xml-parser.browser.js`) parse
+XML with the global `DOMParser`. Some runtimes resolve the browser build but
+don't define `DOMParser`, for example Web Workers and service workers
+(`DOMParser` is only exposed on `Window`), Cloudflare workerd and WebAssembly
+components on StarlingMonkey/ComponentizeJS (see
+[#7375](https://github.com/aws/aws-sdk-js-v3/issues/7375)).
+
+In those runtimes, `parseXML` uses the dependency-free parser from the Node.js
+build (`xml-parser.ts`) instead. The `typeof DOMParser === "undefined"` check
+runs on every call, so it doesn't depend on module load order. When `DOMParser`
+is defined, it's still used.
